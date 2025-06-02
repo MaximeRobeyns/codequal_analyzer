@@ -1,0 +1,26 @@
+# PyCQ Analyzer - Base Requirements (Static Analysis)
+
+# Core functionality
+pyyaml>=6.0        # Configuration handling
+rich>=12.0.0       # Pretty output
+
+# Maintainability analyzers
+pylint>=2.17.0     # General static analysis
+flake8>=6.0.0      # Style guide enforcement
+radon>=5.1.0       # Code complexity metrics
+xenon>=0.9.0       # Complexity threshold enforcement
+pydocstyle>=6.3.0  # Docstring style checking
+vulture>=2.7       # Dead code detection
+
+# Security analyzers
+bandit>=1.7.5      # Security vulnerability scanning
+safety>=2.3.5      # Known vulnerability detection
+
+# Reliability analyzers
+mypy>=1.3.0        # Static type checking
+pyflakes>=3.0.1    # Fast Python linter
+mccabe>=0.7.0      # McCabe complexity checker
+
+# General purpose code quality
+pycodestyle>=2.10.0  # Style guide checking
+isort>=5.12.0      # Import sorting

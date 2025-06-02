@@ -1,0 +1,19 @@
+# PyCQ Analyzer - Full Requirements
+
+# Include all base requirements
+-r base.txt
+
+# Performance analyzers
+py-spy>=0.3.14     # Sampling profiler
+scalene>=1.5.20    # CPU/memory profiling
+line_profiler>=4.0.0  # Line-by-line profiling
+memory_profiler>=0.61.0  # Memory profiling
+
+# Additional reliability tools
+pytest>=7.3.1      # Testing framework
+pytest-cov>=4.1.0  # Coverage measurement
+
+# Performance and resource monitoring
+psutil>=5.9.5      # Process and system utilities
+pyinstrument>=4.5.0  # Python profiler
+guppy3>=3.1.2      # Memory profiling and analysis
