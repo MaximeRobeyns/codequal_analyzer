@@ -171,3 +171,4 @@ sync
 example_outputs
 ./notebooks/test_notebook.py
 ./notebooks/roberta_dev.py
+python/qual_description.md
