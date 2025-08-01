@@ -12,7 +12,7 @@ from collections import defaultdict
 # Configure logging
 def configure_logging(verbose: bool = False) -> logging.Logger:
     """Configure and return logger with appropriate verbosity level."""
-    log_level = logging.INFO if verbose else logging.WARNING
+    log_level = logging.INFO if verbose else logging.CRITICAL
 
     # Create logger
     logger = logging.getLogger("pycq_analyzer")
