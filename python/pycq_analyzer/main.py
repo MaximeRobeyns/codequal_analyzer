@@ -234,18 +234,28 @@ def run_analyzers(
     return findings
 
 
-def calculate_scores(findings: Dict[str, List[Dict[str, Any]]]) -> Dict[str, float]:
+def calculate_scores(
+    findings: Dict[str, List[Dict[str, Any]]],
+    kchars: Optional[float] = None,
+) -> Dict[str, float]:
     """
     Calculate PyCQ quality scores based on findings.
 
     Args:
         findings: Dictionary of findings by characteristic
+        kchars: Project size in thousands of characters. When provided, the
+            returned dict additionally contains length-normalized scores keyed
+            as ``<characteristic>_per_kchar`` and ``overall_per_kchar`` —
+            useful when comparing across solutions of very different sizes.
+            The raw (non-normalized) scores under the existing keys are
+            unchanged.
 
     Returns:
-        Dictionary of scores by characteristic
+        Dictionary of scores by characteristic. Always contains the raw
+        keys (``maintainability``, ``security``, ``performance``,
+        ``reliability``, ``overall``). When ``kchars`` is passed and > 0,
+        also contains the matching ``*_per_kchar`` keys.
     """
-    scores = {}
-
     # Severity weights for calculation
     severity_weights = {
         "low": 1.0,
@@ -255,47 +265,62 @@ def calculate_scores(findings: Dict[str, List[Dict[str, Any]]]) -> Dict[str, flo
         "info": 0.5,
     }
 
-    # Base score value
-    base_score = 100.0
+    # Scale factor adjusts how quickly the score drops, per characteristic.
+    # Security weighted more heavily than the rest.
+    scale_factors = {
+        "maintainability": 0.05,
+        "security": 0.1,
+        "performance": 0.08,
+        "reliability": 0.07,
+    }
 
-    # Calculate score for each characteristic
+    base_score = 100.0
+    scores: Dict[str, float] = {}
+    weighted_sums: Dict[str, float] = {}
+
+    # Calculate raw (non-normalized) score for each characteristic
     for characteristic, characteristic_findings in findings.items():
         if not characteristic_findings:
-            # Even with 0 findings, scores should approach but not quite reach 100
-            # Use a tiny non-zero value as the weighted sum
+            # Even with 0 findings, scores should approach but not reach 100.
             weighted_sum = 0.01
         else:
-            # Calculate weighted sum of findings based on severity
             weighted_sum = 0.0
             for finding in characteristic_findings:
                 severity = finding.get("severity", "medium")
                 weight = severity_weights.get(severity, severity_weights["medium"])
                 weighted_sum += weight
 
-        # Use asymptotic function to calculate score
-        # This approaches 0 as weighted_sum increases, but never reaches it
-        # Formula: score = base_score * (1 / (1 + factor * weighted_sum))
-        # where factor controls how quickly the score drops
-
-        # Scale factor adjusts how quickly the score drops based on characteristic
-        scale_factors = {
-            "maintainability": 0.05,
-            "security": 0.1,  # Security issues have a stronger impact
-            "performance": 0.08,
-            "reliability": 0.07,
-        }
-
+        weighted_sums[characteristic] = weighted_sum
         scale_factor = scale_factors.get(characteristic, 0.05)
         score = base_score * (1 / (1 + scale_factor * weighted_sum))
-
-        # Round to 2 decimal places for readability
         scores[characteristic] = round(score, 2)
 
-    # Calculate overall score as average of all characteristics
-    if scores:
-        scores["overall"] = round(sum(scores.values()) / len(scores), 2)
+    # Raw overall — average over the input characteristics only
+    if findings:
+        scores["overall"] = round(
+            sum(scores[c] for c in findings) / len(findings), 2
+        )
     else:
-        scores["overall"] = 99.99  # Never quite 100
+        scores["overall"] = 99.99
+
+    # Length-normalized variants (per 1000 characters of solution source).
+    # Multiply scale factor by 10 so a "typical" project (~10 kchars) yields
+    # roughly the same dynamic range as the raw score at the same finding
+    # count. Tweak via NORM_SCALE_MULTIPLIER if you re-tune later.
+    NORM_SCALE_MULTIPLIER = 10.0
+    if kchars is not None and kchars > 0:
+        per_keys = []
+        for characteristic, weighted_sum in weighted_sums.items():
+            scale_factor = scale_factors.get(characteristic, 0.05) * NORM_SCALE_MULTIPLIER
+            per_kchar_weighted = weighted_sum / kchars
+            score = base_score * (1 / (1 + scale_factor * per_kchar_weighted))
+            key = f"{characteristic}_per_kchar"
+            scores[key] = round(score, 2)
+            per_keys.append(key)
+        if per_keys:
+            scores["overall_per_kchar"] = round(
+                sum(scores[k] for k in per_keys) / len(per_keys), 2
+            )
 
     return scores
 

@@ -28,6 +28,62 @@ from .main import run_analyzers, calculate_scores
 from .utils import format_findings_as_string, count_lines_of_code
 
 
+def measure_kchars(project_path: Union[str, Path]) -> float:
+    """Total characters across all .py files (excluding caches), divided by 1000.
+
+    Used as the length denominator for length-normalised quality scores.
+    """
+    project_path = Path(project_path)
+    total = 0
+    for p in project_path.rglob("*.py"):
+        if "__pycache__" in p.parts:
+            continue
+        try:
+            total += len(p.read_text(encoding="utf-8", errors="ignore"))
+        except OSError:
+            continue
+    return total / 1000.0
+
+
+def get_quality_scores(
+    project_path: Union[str, Path],
+    verbose: bool = False,
+    quick: bool = False,
+    max_jobs: int = 16,
+    complexity_threshold: str = "C",
+) -> Dict[str, float]:
+    """Analyze a project and return the full score dict, including length-
+    normalised variants (``*_per_kchar``) alongside the raw scores.
+
+    This is the recommended entrypoint for new code — pair the ``overall``
+    field (matches the historic ``get_quality_score`` return value) with
+    ``overall_per_kchar`` to get a length-aware quality signal.
+    """
+    if isinstance(project_path, str):
+        project_path = Path(project_path)
+    if not project_path.exists():
+        raise ValueError(f"Project path does not exist: {project_path}")
+
+    kchars = measure_kchars(project_path)
+
+    if quick:
+        findings = run_selected_analyzers(
+            project_path, verbose, max_jobs, complexity_threshold
+        )
+    else:
+        findings = run_analyzers(
+            project_path=project_path,
+            static_only=True,
+            verbose=verbose,
+            max_jobs=max_jobs,
+            complexity_threshold=complexity_threshold,
+        )
+
+    scores = calculate_scores(findings, kchars=kchars if kchars > 0 else None)
+    scores["solution_kchars"] = round(kchars, 3)
+    return scores
+
+
 def get_quality_score(
     project_path: Union[str, Path],
     verbose: bool = False,
